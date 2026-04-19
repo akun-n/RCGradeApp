@@ -23,7 +23,6 @@ public class MainView extends VerticalLayout {
         classField.setPlaceholder("Enter custom class name");
         classField.setVisible(false);
         Button button = new Button("Add Class");
-        Text greeting = new Text("");
         NumberField w1Field = createGradeField("W1");
         NumberField w2Field = createGradeField("W2");
         NumberField p1Field = createGradeField("P1");
