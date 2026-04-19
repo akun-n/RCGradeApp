@@ -559,7 +559,7 @@ public class MainView extends VerticalLayout
         Double p1v = predP1.getValue();
         Double p2v = predP2.getValue();
         Double target = predTarget.getValue();
- 
+
         if (target == null) 
         {
             renderResult(predResultDiv, "error", "Please enter a target average.");
@@ -570,69 +570,100 @@ public class MainView extends VerticalLayout
             renderResult(predResultDiv, "error", "Target must be between 0 and 100.");
             return;
         }
- 
+
+        final double eps = 1e-6;
+
         List<Double> entered = enteredValues(predW1, predW2, predP1, predP2);
-        int enteredCount = entered.size();
-        int missingCount = 4 - enteredCount;
- 
+        int missingCount = 4 - entered.size();
+
         if (missingCount == 0) 
         {
-            double currentAvg = entered.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-            if (currentAvg >= target)
+            double sum4 = w1v + w2v + p1v + p2v;
+            double p5 = Math.max(Math.max(w1v, w2v), Math.max(p1v, p2v));
+            double currentAvg = (sum4 + p5) / 5.0;
+            if (currentAvg + eps >= target)
                 renderResult(predResultDiv, "success",
-                        String.format("All grades are in — your average is %.2f. Target of %.1f ✓", currentAvg, target));
+                        String.format(
+                                "All grades are in — your course average is %.2f (includes P5 = %.1f). Target of %.1f ✓",
+                                currentAvg, p5, target));
             else
                 renderResult(predResultDiv, "warning",
-                        String.format("All grades are in. Your average (%.2f) is below your target (%.1f). No more assessments remain.", currentAvg, target));
+                        String.format(
+                                "All grades are in. Your course average (%.2f, with P5 = %.1f) is below your target (%.1f). No more assessments remain.",
+                                currentAvg, p5, target));
             return;
         }
- 
-        if (enteredCount == 0)
-        {
-            renderResult(predResultDiv, "info",
-                    String.format("No grades entered yet.\nYou need %.1f on all 4 assessments (W1, W2, P1, P2) to reach %.1f.", target, target));
-            return;
-        }
- 
-        double sumEntered = entered.stream().mapToDouble(Double::doubleValue).sum();
-        double needed     = (target * 4.0 - sumEntered) / missingCount;
- 
+
+        double sumKnown = entered.stream().mapToDouble(Double::doubleValue).sum();
+        double bestKnown = entered.isEmpty() ? 0.0 : entered.stream().mapToDouble(Double::doubleValue).max().orElse(0.0);
+
         List<String> missingNames = new ArrayList<>();
         if (w1v == null) missingNames.add("W1");
         if (w2v == null) missingNames.add("W2");
         if (p1v == null) missingNames.add("P1");
         if (p2v == null) missingNames.add("P2");
         String missing = String.join(", ", missingNames);
- 
-        if (needed > 100) 
+
+        double avgAt0 = predictorAvgEqualMissing(sumKnown, missingCount, bestKnown, 0.0);
+        double avgAt100 = predictorAvgEqualMissing(sumKnown, missingCount, bestKnown, 100.0);
+
+        if (avgAt100 + eps < target)
         {
             renderResult(predResultDiv, "error",
                     String.format(
-                        "Target %.1f is not achievable with your current grades.\n" +
-                        "You would need %.1f on %s — above the 100-point maximum.\n" +
-                        "Consider revising your target.",
-                        target, needed, missing));
-        } 
-        else if (needed < 0) 
+                            "Target %.1f is not reachable even with 100 on %s (max course average here ≈ %.2f, using (W1+W2+P1+P2+P5)/5 and P5 = best of the four).\n"
+                                    + "Try a lower target.",
+                            target, missing, avgAt100));
+            return;
+        }
+
+        if (avgAt0 + eps >= target)
         {
             renderResult(predResultDiv, "success",
                     String.format(
-                        "You've already secured your target!\n" +
-                        "Even scoring 0 on %s, your average will exceed %.1f. 🎉",
-                        missing, target));
-        } 
-        else 
-        {
-            String difficulty = needed >= 85 ? "🔥 Challenging" : needed >= 70 ? "📘 Attainable" : "✅ Comfortable";
-            String tier = gradeTier(needed);
-            renderResult(predResultDiv, "result",
-                    String.format(
-                        "You need at least  %.1f  on:  %s\n\n" +
-                        "Difficulty: %s\n" +
-                        "That score qualifies as: %s\n" +
-                        "Target average: %.1f",
-                        needed, missing, difficulty, tier, target));
+                            "You've already secured your target!\n"
+                                    + "Even scoring 0 on %s, your course average stays at about %.2f — at or above %.1f. 🎉",
+                            missing, avgAt0, target));
+            return;
         }
+
+        double lo = 0.0;
+        double hi = 100.0;
+        for (int i = 0; i < 56; i++)
+        {
+            double mid = (lo + hi) * 0.5;
+            if (predictorAvgEqualMissing(sumKnown, missingCount, bestKnown, mid) + eps >= target)
+            {
+                hi = mid;
+            }
+            else
+            {
+                lo = mid;
+            }
+        }
+        double needed = hi;
+
+        double p5IfNeeded = Math.max(bestKnown, needed);
+        String difficulty = needed >= 85 ? "🔥 Challenging" : needed >= 70 ? "📘 Attainable" : "✅ Comfortable";
+        String tier = gradeTier(needed);
+        renderResult(predResultDiv, "result",
+                String.format(
+                        "You need at least  %.1f  on:  %s\n\n"
+                                + "Average = (W1+W2+P1+P2+P5)/5 with P5 the highest of those four "
+                                + "(at this minimum, P5 ≈ %.1f).\n\n"
+                                + "Difficulty: %s\n"
+                                + "That score qualifies as: %s\n"
+                                + "Target average: %.1f",
+                        needed, missing, p5IfNeeded, difficulty, tier, target));
+    }
+
+    /**
+     * Predictor model: every not-yet-taken assessment gets the same score {@code x};
+     * P5 = max(bestKnown, x) where bestKnown is the max among grades already entered.
+     */
+    private static double predictorAvgEqualMissing(double sumKnown, int missingCount, double bestKnown, double x)
+    {
+        return (sumKnown + missingCount * x + Math.max(bestKnown, x)) / 5.0;
     }
  
     private void handlePlannerCalc() 
