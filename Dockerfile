@@ -3,7 +3,7 @@ WORKDIR /app
 
 # Copy project files and build executable jar.
 COPY . .
-RUN ./mvnw -B clean package -DskipTests
+RUN ./mvnw -B clean package -Pproduction -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
