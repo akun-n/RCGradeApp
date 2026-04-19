@@ -611,7 +611,7 @@ public class MainView extends VerticalLayout
         {
             renderResult(predResultDiv, "error",
                     String.format(
-                            "Target %.1f is not reachable even with 100 on %s (max course average here ≈ %.2f, using (W1+W2+P1+P2+P5)/5 and P5 = best of the four).\n"
+                            "Target %.1f is not reachable even with 100 on %s\n"
                                     + "Try a lower target.",
                             target, missing, avgAt100));
             return;
@@ -649,8 +649,6 @@ public class MainView extends VerticalLayout
         renderResult(predResultDiv, "result",
                 String.format(
                         "You need at least  %.1f  on:  %s\n\n"
-                                + "Average = (W1+W2+P1+P2+P5)/5 with P5 the highest of those four "
-                                + "(at this minimum, P5 ≈ %.1f).\n\n"
                                 + "Difficulty: %s\n"
                                 + "That score qualifies as: %s\n"
                                 + "Target average: %.1f",
