@@ -975,8 +975,12 @@ public class MainView extends VerticalLayout
     {
         private final String className;
         private final double classHours;
-        private final Double w1, w2, p1, p2;
-        private final double p5, average;
+        private final Double w1;
+        private final Double w2;
+        private final Double p1;
+        private final Double p2;
+        private final double p5;
+        private final double average;
  
         GradeRow(String className, double classHours, Double w1, Double w2, Double p1, Double p2, double p5, double average) 
         {
