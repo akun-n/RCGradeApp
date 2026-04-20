@@ -287,8 +287,10 @@ public class MainView extends VerticalLayout
             } 
             else 
             {
-                addP5.setValue(round2(entered.stream().mapToDouble(Double::doubleValue).max().orElse(0)));
-                addAvg.setValue(round2(entered.stream().mapToDouble(Double::doubleValue).average().orElse(0)));
+                double sum = entered.stream().mapToDouble(Double::doubleValue).sum();
+                double p5 = entered.stream().mapToDouble(Double::doubleValue).max().orElse(0);
+                addP5.setValue(round2(p5));
+                addAvg.setValue(round2((sum + p5) / (entered.size() + 1)));
             }
         };
         addW1.addValueChangeListener(e -> recalc.run());
@@ -532,8 +534,8 @@ public class MainView extends VerticalLayout
         Double p2val = addP2.getValue();
  
         List<Double> entered = enteredValues(addW1, addW2, addP1, addP2);
-        double p5  = entered.isEmpty() ? 0 : entered.stream().mapToDouble(Double::doubleValue).max().orElse(0);
-        double avg = entered.isEmpty() ? 0 : entered.stream().mapToDouble(Double::doubleValue).average().orElse(0);
+        double p5 = entered.isEmpty() ? 0 : entered.stream().mapToDouble(Double::doubleValue).max().orElse(0);
+        double avg = entered.isEmpty() ? 0 : (entered.stream().mapToDouble(Double::doubleValue).sum() + p5) / (entered.size() + 1);
  
         classRows.add(new GradeRow(name, hours, w1val, w2val, p1val, p2val, p5, avg));
         classTable.setItems(classRows);
@@ -643,7 +645,6 @@ public class MainView extends VerticalLayout
         }
         double needed = hi;
 
-        double p5IfNeeded = Math.max(bestKnown, needed);
         String difficulty = needed >= 85 ? "🔥 Challenging" : needed >= 70 ? "📘 Attainable" : "✅ Comfortable";
         String tier = gradeTier(needed);
         renderResult(predResultDiv, "result",
@@ -652,7 +653,7 @@ public class MainView extends VerticalLayout
                                 + "Difficulty: %s\n"
                                 + "That score qualifies as: %s\n"
                                 + "Target average: %.1f",
-                        needed, missing, p5IfNeeded, difficulty, tier, target));
+                        needed, missing, difficulty, tier, target));
     }
 
     /**
